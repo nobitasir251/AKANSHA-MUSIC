@@ -32,7 +32,40 @@ class Anony(Client):
         self.username = self.me.username
         self.mention = self.me.mention
 
-        # Check and send message to LOGGER_ID
+        LOGGER(__name__).info(
+            f"Bot logged in as @{self.username} ({self.id})"
+        )
+
+        # -------------------------------------------------
+        # Resolve LOGGER_ID
+        # -------------------------------------------------
+        try:
+            logger_id = config.LOGGER_ID
+
+            # If LOGGER_ID is a string username/link,
+            # Pyrogram can resolve it directly.
+            chat = await self.get_chat(logger_id)
+
+            # Store the resolved numeric ID
+            config.LOGGER_ID = chat.id
+
+            LOGGER(__name__).info(
+                f"LOGGER_ID resolved successfully: {chat.id}"
+            )
+
+        except Exception as ex:
+            LOGGER(__name__).error(
+                "Unable to resolve LOGGER_ID.\n"
+                f"Error Type: {type(ex).__name__}\n"
+                f"Error: {ex}\n\n"
+                "Make sure the bot is added to the log group/channel "
+                "and LOGGER_ID is correct."
+            )
+            raise
+
+        # -------------------------------------------------
+        # Send startup message
+        # -------------------------------------------------
         try:
             await self.send_message(
                 chat_id=config.LOGGER_ID,
@@ -44,34 +77,28 @@ class Anony(Client):
                 ),
             )
 
-        except errors.ChannelInvalid:
-            LOGGER(__name__).error(
-                "LOGGER_ID is invalid or the channel/group cannot be accessed."
+            LOGGER(__name__).info(
+                "Startup message sent to LOGGER_ID."
             )
-            raise
-
-        except errors.PeerIdInvalid:
-            LOGGER(__name__).error(
-                "LOGGER_ID is invalid. Use the numeric Telegram chat ID "
-                "such as -100xxxxxxxxxx."
-            )
-            raise
 
         except errors.ChatAdminRequired:
             LOGGER(__name__).error(
-                "Bot does not have permission to access the LOGGER_ID chat."
+                "Bot does not have permission to send messages "
+                "in LOGGER_ID."
             )
             raise
 
         except Exception as ex:
             LOGGER(__name__).error(
-                "Bot failed to access LOGGER_ID.\n"
+                "Bot failed to send message to LOGGER_ID.\n"
                 f"Error Type: {type(ex).__name__}\n"
                 f"Error: {ex}"
             )
             raise
 
-        # Check whether bot is administrator
+        # -------------------------------------------------
+        # Check bot admin status
+        # -------------------------------------------------
         try:
             member = await self.get_chat_member(
                 config.LOGGER_ID,
